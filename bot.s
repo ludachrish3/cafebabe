@@ -108,8 +108,13 @@ check_fav:
 calculate_target_planet:
 	la	$t1, planets		# $t1 = start of planets array
 	sw	$t1, PLANETS_REQUEST
-	mul	$t2, $t0, 24
-	add	$t0, $t1, $t2		# $t0 = start of destination planet info, this gets us the offset of the planet array
+	
+	lw  $t0, LANDING_REQUEST
+	bne $t0, $0, next_planet_else
+	li  $t8, 1
+next_planet_else:
+	li  $t8, 0
+
 start_moving:
 	lw	$t2, BOT_X
 	beq	$t2, 150, align_y
