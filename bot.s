@@ -44,19 +44,26 @@ planet_info_size = 24
 str = 0
 solution = 8
 next = 12
+# planets array
+planets:
+	.space NUM_PLANETS * planet_info_size
 
 puzzle_ready:
 	.word 0
 
 puzzle:
 	.word 8192
-
+planet_1:
+	.word 1
+planet_2:
+	.word 1
 .text
 
 main:
 	sub	$sp, $sp, 8
 	sw	$ra, 0($sp)
 	sw	$s0, 4($sp)
+	sw	$s1, 8($sp)
 
 	li	$t0, DELIVERY_MASK
 	or	$t0, $t0, 1		# global interrupt enable
@@ -65,10 +72,10 @@ main:
 puzzle_loop:
 	sw	$zero, puzzle_ready
 	la	$t0, puzzle
-	sw	$t0, PUZZLE_REQUEST
+	sw	$t0, PUZZLE_REQUEST	#calls puzzle request interrupt
 
 wait:
-	lw	$t0, puzzle_ready
+	lw	$t0, puzzle_ready	#waits until puzzle solved
 	beq	$t0, 0, wait
 
 	la	$s0, puzzle
@@ -83,11 +90,80 @@ solve_loop:
 
 	la	$t0, puzzle
 	sw	$t0, SOLVE_REQUEST
-	j	puzzle_loop
+	#j	puzzle_loop
+check_fav:
+	lw	$t0, LANDING_REQUEST
+
+	sw	$t0, planet_1		# store the first planet visited
+
+	la	$t1, planets		# $t1 = start of planets array
+	sw	$t1, PLANETS_REQUEST
+	mul	$t2, $t0, 24
+	add	$t1, $t0, $t2		# $t0 = start of destination planet info, this gets us the offset of the planet array
+	lw	$s1, 16($t1)		# get current favor
+	blt 	$s1, 10, puzzle_loop	#if not 10 favor, solve another puzzle
+calculate_target_planet:
+
+start_moving:
+	lw	$t2, BOT_X
+	beq	$t2, 150, align_y
+	bgt	$t2, 150, target_left
+	
+	li	$t3, 0
+	j	move_x
+
+target_left:
+	li	$t3, 180
+
+move_x:
+	sw	$t3, ANGLE
+	li	$t3, 1
+	sw	$t3, ANGLE_CONTROL
+
+move_x_loop:
+	lw	$t2, BOT_X
+	bne	$t2, 150, move_x_loop
+
+align_y:
+	lw	$t2, BOT_Y
+	lw	$t3, orbital_radius($t0)
+	add	$t3, $t3, 150		# $t3 = target Y
+	beq	$t2, $t3, wait_for_planet
+	bgt	$t2, $t3, target_up
+	
+	li	$t4, 90
+	j	move_y
+
+target_up:
+	li	$t4, 270
+
+move_y:
+	sw	$t4, ANGLE
+	li	$t4, 1
+	sw	$t4, ANGLE_CONTROL
+
+move_y_loop:
+	lw	$t2, BOT_Y
+	bne	$t2, $t3, move_y_loop
+
+wait_for_planet:
+	sw	$zero, VELOCITY
+
+wait_for_planet_loop:
+	sw	$t1, PLANETS_REQUEST
+	lw	$t2, planet_x($t0)
+	bne	$t2, 150, wait_for_planet_loop
+	lw	$t2, planet_y($t0)
+	bne	$t2, $t3, wait_for_planet_loop
+
+	# planet is under you; now land on it
+	sw	$zero, LANDING_REQUEST
+		
 
 	# never reached, but included for completeness
 	lw	$ra, 0($sp)
 	lw	$s0, 4($sp)
+	lw	$s1, 8($sp)
 	add	$sp, $sp, 8
 	jr	$ra
 
