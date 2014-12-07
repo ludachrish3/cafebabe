@@ -50,7 +50,8 @@ planets:
 
 puzzle_ready:
 	.word 0
-
+debug:
+	.word 0
 puzzle:
 	.word 8192
 planet_1:
@@ -69,6 +70,7 @@ main:
 	or	$t0, $t0, 1		# global interrupt enable
 	mtc0	$t0, $12
 
+	sw	$zero, debug		#for debugging
 puzzle_loop:
 	sw	$zero, puzzle_ready
 	la	$t0, puzzle
@@ -89,7 +91,7 @@ solve_loop:
 	bne	$s0, 0, solve_loop
 
 	la	$t0, puzzle
-	sw	$t0, SOLVE_REQUEST
+	sw	$t0, SOLVE_REQUEST	#Up to lab 9, all given solution
 	#j	puzzle_loop
 check_fav:
 	lw	$t0, LANDING_REQUEST
@@ -99,11 +101,15 @@ check_fav:
 	la	$t1, planets		# $t1 = start of planets array
 	sw	$t1, PLANETS_REQUEST
 	mul	$t2, $t0, 24
-	add	$t1, $t0, $t2		# $t0 = start of destination planet info, this gets us the offset of the planet array
-	lw	$s1, 16($t1)		# get current favor
+	add	$t0, $t1, $t2		# $t0 = start of destination planet info, this gets us the offset of the planet array
+	lw	$s1, 16($t0)		# get current favor
 	blt 	$s1, 10, puzzle_loop	#if not 10 favor, solve another puzzle
+	sw	$zero, TAKEOFF_REQUEST
 calculate_target_planet:
-
+	la	$t1, planets		# $t1 = start of planets array
+	sw	$t1, PLANETS_REQUEST
+	mul	$t2, $t0, 24
+	add	$t0, $t1, $t2		# $t0 = start of destination planet info, this gets us the offset of the planet array
 start_moving:
 	lw	$t2, BOT_X
 	beq	$t2, 150, align_y
@@ -166,6 +172,7 @@ wait_for_planet_loop:
 	lw	$s1, 8($sp)
 	add	$sp, $sp, 8
 	jr	$ra
+
 
 
 
