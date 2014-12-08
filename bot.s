@@ -96,15 +96,13 @@ solve_loop:
 check_fav:
 	lw	$t0, LANDING_REQUEST
 
-	sw	$t0, planet_1		# store the first planet visited
-
 	la	$t1, planets		# $t1 = start of planets array
 	sw	$t1, PLANETS_REQUEST
 	mul	$t2, $t0, 24
 	add	$t0, $t1, $t2		# $t0 = start of destination planet info, this gets us the offset of the planet array
 	lw	$s1, 16($t0)		# get current favor
-	blt 	$s1, 10, puzzle_loop	#if not 10 favor, solve another puzzle
-	sw	$zero, TAKEOFF_REQUEST
+	blt $s1, 1, puzzle_loop	# if not 10 favor, solve another puzzle
+	
 calculate_target_planet:
 	la	$t1, planets		# $t1 = start of planets array
 	sw	$t1, PLANETS_REQUEST
@@ -112,15 +110,23 @@ calculate_target_planet:
 	lw  $t0, LANDING_REQUEST
 	bne $t0, $0, next_planet_else
 	li  $t8, 1
+	j 	not_zero
 next_planet_else:
-	li  $t8, 0
+	li  $t8, 0 				# get target planet number
+not_zero:
+	sw	$zero, TAKEOFF_REQUEST
+	
+	mul $t2, $t8, 24 		# get planet offset
+	add $t0, $t1, $t2 		# add offset to array location
 
 start_moving:
+	li  $t7, 10
+	sw  $t7, VELOCITY
 	lw	$t2, BOT_X
 	beq	$t2, 150, align_y
 	bgt	$t2, 150, target_left
 	
-	li	$t3, 0
+	li	$t3, 0 				# $t3 holds angle
 	j	move_x
 
 target_left:
@@ -169,7 +175,7 @@ wait_for_planet_loop:
 
 	# planet is under you; now land on it
 	sw	$zero, LANDING_REQUEST
-		
+	j 	puzzle_loop
 
 	# never reached, but included for completeness
 	lw	$ra, 0($sp)
